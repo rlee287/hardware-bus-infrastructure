@@ -25,9 +25,9 @@ Example Cores (expand list later) | :x: | :x: | :x: | :x: | :x:
 
 This repository has (or will have) the following busses:
 
- * Wishbone 4 (link to specification)
- * AXI4-Stream (link to specification)
- * AXI4-Lite and AXI4 (link to specification)
+ * [Wishbone 4](https://cdn.opencores.org/downloads/wbspec_b4.pdf)
+ * [AXI4-Stream](https://static.docs.arm.com/ihi0051/a/IHI0051A_amba4_axi4_stream_v1_0_protocol_spec.pdf)
+ * [AXI4-Lite and AXI4](https://static.docs.arm.com/ihi0022/fb/IHI0022F_b_amba_axi_protocol_spec.pdf)
 
 ## Document Types
 
