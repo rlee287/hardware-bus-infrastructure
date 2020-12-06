@@ -41,6 +41,16 @@ module axi_stream_master_monitor #(
 
     // Section 2.2.1 Handshake process
 
+    // Once TVALID is asserted it must be held until TVALID && TREADY
+    always @(posedge clk)
+    begin
+        // Write this as (TVALID falls implies previous data transfer)
+        if ($fell(tvalid))
+        begin
+            assert($past(tvalid && tready))
+        end
+    end
+
     // Master cannot wait on TREADY to signal TVALID
     // TODO write out the below statement in Yosys-readable SVA
     // assert possible((always !tready) && (eventually tvalid))
