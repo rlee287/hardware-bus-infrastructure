@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The goal of this project is to develop formal verification properties for various bus standards, write documents to assist people in using these busses, and create verified example cores and infrastructure (e.g. interconnects) based on these properties. Lowering the entry barrier for formal verificationwill allow more people to write HDL modules with the guarantee that they will work properly.
+The goal of this project is to develop formal verification properties for various bus standards, write documents to assist people in using these busses, and create verified example cores and infrastructure (e.g. interconnects) based on these properties. Lowering the entry barrier for formal verification will allow more people to write HDL modules with the guarantee that they will work properly.
 
 ## Status Table
 
