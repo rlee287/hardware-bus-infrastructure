@@ -71,6 +71,9 @@ module axi_stream_slave_monitor #(
         end
     end
 
+    // Section 2.7.1 Clock
+    // Unlike regular AXI there is no requirement for no combinational paths
+
     // Section 2.7.2 Reset
     // TODO handle an asynchronous aresetn
     always @(posedge clk)
