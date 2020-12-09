@@ -34,20 +34,24 @@ module axi_stream_master_monitor #(
     input wire [(id_width-1):0] tid,
     input wire [(dest_width-1):0] tdest,
     input wire [(user_width-1):0] tuser
+
+    // TODO add output signals for byte counts, etc.
 );
     reg past_valid = 1'b0;
     always @(posedge clk)
         past_valid = 1'b1;
+
+    // TODO handle an asynchronous aresetn
 
     // Section 2.2.1 Handshake process
 
     // Once TVALID is asserted it must be held until TVALID && TREADY
     always @(posedge clk)
     begin
-        // Write this as (TVALID falls implies previous data transfer)
+        // Write this as (TVALID falls implies previous data transfer or reset)
         if ($fell(tvalid))
         begin
-            assert($past(tvalid && tready))
+            assert($past(tvalid && tready) || $past(!resetn))
         end
     end
 
@@ -75,10 +79,9 @@ module axi_stream_master_monitor #(
     // Unlike regular AXI there is no requirement for no combinational paths
 
     // Section 2.7.2 Reset
-    // TODO handle an asynchronous aresetn
     always @(posedge clk)
     begin
-        assert(resetn || !tvalid); // aresetn asserted -> tvalid deasserted
+        assert($past(resetn) || !tvalid); // aresetn asserted -> tvalid deasserted
     end
 
     // Section 2.4.3 TKEEP and TSTRB combinations
