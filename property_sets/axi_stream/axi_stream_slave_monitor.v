@@ -49,7 +49,7 @@ module axi_stream_slave_monitor #(
     always @(posedge clk)
     begin
         // Write this as (TVALID falls implies previous data transfer or reset)
-        if ($fell(tvalid))
+        if (past_valid && $fell(tvalid))
         begin
             assume($past(tvalid && tready) || $past(!resetn))
         end
@@ -81,7 +81,10 @@ module axi_stream_slave_monitor #(
     // Section 2.7.2 Reset
     always @(posedge clk)
     begin
-        assume($past(resetn) || !tvalid); // aresetn asserted -> tvalid deasserted
+        if (past_valid)
+        begin
+            assume($past(resetn) || !tvalid); // aresetn asserted -> tvalid deasserted
+        end
     end
 
     // Section 2.4.3 TKEEP and TSTRB combinations
