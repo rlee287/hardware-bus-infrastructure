@@ -51,7 +51,7 @@ module axi_stream_slave_monitor #(
         // Write this as (TVALID falls implies previous data transfer or reset)
         if ($fell(tvalid))
         begin
-            assume($past(tvalid && tready) || $past(resetn))
+            assume($past(tvalid && tready) || $past(!resetn))
         end
     end
 
