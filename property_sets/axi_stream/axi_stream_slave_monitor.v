@@ -39,7 +39,7 @@ module axi_stream_slave_monitor #(
 );
     reg past_valid = 1'b0;
     always @(posedge clk)
-        past_valid = 1'b1;
+        past_valid <= 1'b1;
 
     // TODO handle an asynchronous aresetn
 
