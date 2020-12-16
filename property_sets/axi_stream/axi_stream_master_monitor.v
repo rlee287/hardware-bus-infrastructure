@@ -9,7 +9,8 @@ module axi_stream_master_monitor #(
     parameter byte_width = 4,
     parameter id_width = 0,
     parameter dest_width = 0,
-    parameter user_width = 0
+    parameter user_width = 0,
+    parameter USE_ASYNC_RESET = 1'b0
 ) (
     input wire clk,
     input wire resetn,
@@ -41,6 +42,20 @@ module axi_stream_master_monitor #(
     always @(posedge clk)
         past_valid <= 1'b1;
 
+    wire in_reset;
+    reg resetn_delayed;
+    always @(posedge clk)
+        resetn_delayed <= resetn;
+
+    generate
+        if (USE_ASYNC_RESET)
+            assign in_reset = !resetn;
+        else
+            assign in_reset = !resetn_delayed;
+    endgenerate
+
+`define TX_ASSERT assert
+
     // TODO handle an asynchronous aresetn
 
     // Section 2.2.1 Handshake process
@@ -51,27 +66,27 @@ module axi_stream_master_monitor #(
         // Write this as (TVALID falls implies previous data transfer or reset)
         if (past_valid && $fell(tvalid))
         begin
-            assert($past(tvalid && tready) || $past(!resetn))
+            `TX_ASSERT($past(tvalid && tready) || in_reset);
         end
     end
 
     // Master cannot wait on TREADY to signal TVALID
     // TODO write out the below statement in Yosys-readable SVA
-    // assert possible((always !tready) && (eventually tvalid))
+    // `TX_ASSERT possible((always !tready) && (eventually tvalid))
 
     // When TVALID && !TREADY, data signals must be stable
     always @(posedge clk)
     begin
-        if (past_valid && $past(tvalid && !tready))
+        if (past_valid && !in_reset && $past(tvalid && !tready))
         begin
-            assert($stable(tdata));
-            assert($stable(tstrb));
-            assert($stable(tkeep));
-            assert($stable(tlast));
+            `TX_ASSERT($stable(tdata));
+            `TX_ASSERT($stable(tstrb));
+            `TX_ASSERT($stable(tkeep));
+            `TX_ASSERT($stable(tlast));
             // TODO may need to check nonzero widths first
-            assert($stable(tid));
-            assert($stable(tdest));
-            assert($stable(tuser));
+            `TX_ASSERT($stable(tid));
+            `TX_ASSERT($stable(tdest));
+            `TX_ASSERT($stable(tuser));
         end
     end
 
@@ -83,7 +98,7 @@ module axi_stream_master_monitor #(
     begin
         if (past_valid)
         begin
-            assert($past(resetn) || !tvalid); // aresetn asserted -> tvalid deasserted
+            `TX_ASSERT(in_reset || !tvalid); // aresetn asserted -> tvalid deasserted
         end
     end
 
@@ -93,7 +108,7 @@ module axi_stream_master_monitor #(
     begin
         if (tvalid)
         begin
-            assert(!(~tkeep & tstrb));
+            `TX_ASSERT(!(~tkeep & tstrb));
         end
     end
     
@@ -101,3 +116,4 @@ module axi_stream_master_monitor #(
     // no TDATA -> no TSTRB
     // XXX: this isn't really representable as a formal property
 endmodule
+`undef TX_ASSERT
