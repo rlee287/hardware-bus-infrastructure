@@ -83,10 +83,12 @@ module axi_stream_slave_monitor #(
             `TX_ASSERT($stable(tstrb));
             `TX_ASSERT($stable(tkeep));
             `TX_ASSERT($stable(tlast));
-            // TODO may need to check nonzero widths first
-            `TX_ASSERT($stable(tid));
-            `TX_ASSERT($stable(tdest));
-            `TX_ASSERT($stable(tuser));
+            if (id_width > 0)
+                `TX_ASSERT($stable(tid));
+            if (dest_width > 0)
+                `TX_ASSERT($stable(tdest));
+            if (user_width > 0)
+                `TX_ASSERT($stable(tuser));
         end
     end
 
