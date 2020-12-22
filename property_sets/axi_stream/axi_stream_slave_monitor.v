@@ -47,6 +47,11 @@ module axi_stream_slave_monitor #(
     always @(posedge clk)
         resetn_delayed <= resetn;
 
+    /* 
+     * If in async mode, reset is combinational
+     * If in sync mode, reset is registered
+     * WARNING: there may be off-by-(timestep) errors for reset release
+     */
     generate
         if (USE_ASYNC_RESET)
             assign in_reset = !resetn;
@@ -96,11 +101,11 @@ module axi_stream_slave_monitor #(
     // Unlike regular AXI there is no requirement for no combinational paths
 
     // Section 2.7.2 Reset
-    always @(posedge clk)
+    always @(*)
     begin
-        if (past_valid)
+        if (in_reset)
         begin
-            `TX_ASSERT(in_reset || !tvalid); // aresetn asserted -> tvalid deasserted
+            `TX_ASSERT(!tvalid);
         end
     end
 
