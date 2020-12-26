@@ -84,7 +84,6 @@ module axi_stream_master_monitor #(
     begin
         if (past_valid && !in_reset && $past(tvalid && !tready))
         begin
-            `TX_ASSERT($stable(tdata));
             `TX_ASSERT($stable(tstrb));
             `TX_ASSERT($stable(tkeep));
             `TX_ASSERT($stable(tlast));
@@ -96,6 +95,22 @@ module axi_stream_master_monitor #(
                 `TX_ASSERT($stable(tuser));
         end
     end
+    // Section 2.4 Byte Qualifiers
+    // The data byte's value is only significant for data bytes
+    // Don't care if stalled position or null bytes change values
+    generate
+        genvar i;
+    for (i = 0; i < byte_width; i = i + 1)
+    begin
+        always @(posedge clk)
+            if (past_valid && !in_reset && $past(tvalid && !tready))
+            begin
+                // Data bytes are when tkeep[i] and tstrb[i] are asserted
+                if (tkeep[i] && tstrb[i])
+                    `TX_ASSERT($stable(tdata[8*i+7:8*i]));
+            end
+    end
+    endgenerate
 
     // Section 2.7.1 Clock
     // Unlike regular AXI there is no requirement for no combinational paths
