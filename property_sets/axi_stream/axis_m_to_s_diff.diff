@@ -1,0 +1,8 @@
+8c8
+< module axi_stream_master_monitor #(
+---
+> module axi_stream_slave_monitor #(
+62c62
+< `define TX_ASSERT assert
+---
+> `define TX_ASSERT assume
