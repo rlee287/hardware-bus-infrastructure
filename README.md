@@ -10,7 +10,7 @@ Key to emojis:
 
  * :x: : Item is not started
  * :heavy_minus_sign: : Item is in progress
- * :heavy_plus_sign: : Item is completed but has not been 
+ * :heavy_plus_sign: : Item is completed but has not been tested sufficiently
  * :heavy_check_mark: : Item is completed and has been tested sufficiently
 
 All entries may contain an issue number tracking progress on the item.
