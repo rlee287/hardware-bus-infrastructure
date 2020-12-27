@@ -15,6 +15,10 @@ module axi_stream_slave_monitor #(
     parameter id_width = 0,
     parameter dest_width = 0,
     parameter user_width = 0,
+    // Section 3.1.5 Optional TDATA
+    // no TDATA -> no TSTRB (but TKEEP can still exist)
+    // TKEEP width when byte_width=0
+    parameter keep_width = 0,
     parameter USE_ASYNC_RESET = 1'b0
 ) (
     input wire clk,
@@ -33,7 +37,7 @@ module axi_stream_slave_monitor #(
     // Section 3.1.2 Optional TKEEP and TSTRB
     // TODO: fix optional value declarations
     input wire [(byte_width-1):0] tstrb,// = tkeep,
-    input wire [(byte_width-1):0] tkeep,// = {(byte_width-1){1'b1}},
+    input wire [(byte_width>0 ? (byte_width-1) : keep_width):0] tkeep,// = {(byte_width-1){1'b1}},
 
     // Section 3.1.3 Optional TLAST
     // Recommended default TLAST value situation-dependent
@@ -127,9 +131,5 @@ module axi_stream_slave_monitor #(
             `TX_ASSERT(!(~tkeep & tstrb));
         end
     end
-    
-    // Section 3.1.5 Optional TDATA
-    // no TDATA -> no TSTRB
-    // XXX: this isn't really representable as a formal property
 endmodule
 `undef TX_ASSERT
