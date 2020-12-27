@@ -10,16 +10,17 @@ Key to emojis:
 
  * :x: : Item is not started
  * :heavy_minus_sign: : Item is in progress
- * :heavy_check_mark: : Item is completed
+ * :heavy_plus_sign: : Item is completed but has not been 
+ * :heavy_check_mark: : Item is completed and has been tested sufficiently
 
 All entries may contain an issue number tracking progress on the item.
 
 Item | Wishbone 4 Classic | Wishbone 4 Pipelined | AXI4-Stream | AXI4-Lite | AXI4
 ---- | ------------------ | -------------------- | ----------- | --------- | ----
-Formal Property Set (SVA) | :x: | :x: | :x: | :x: | :x:
-Formal Property Set (PSL) | :x: | :x: | :x: | :x: | :x:
+Formal Property Set (SVA) | :x: | :x: | :heavy_plus_sign: (#1, #3, #4) | :x: | :x:
+Formal Property Set (PSL) | :x: | :x: | :heavy_minus_sign: (#1, awaiting #3 merge) | :x: | :x:
 Bus Summary | :x: | :x: | :x: | :x: | :x:
-Example Cores (expand list later) | :x: | :x: | :x: | :x: | :x:
+Example Cores (expand list later) | :x: | :x: | :x: (#5) | :x: | :x:
 
 ## Bus Standards
 
