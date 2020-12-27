@@ -97,10 +97,16 @@ module axi_stream_master_monitor #(
     begin
         if (past_valid && !in_reset && $past(tvalid && !tready))
         begin
-            `TX_ASSERT($stable(tdata));
-            `TX_ASSERT($stable(tstrb));
-            `TX_ASSERT($stable(tkeep));
+            if (byte_width > 0)
+            begin
+                `TX_ASSERT($stable(tdata));
+                `TX_ASSERT($stable(tstrb));
+            end
+            if (byte_width > 0 || keep_width > 0)
+                `TX_ASSERT($stable(tkeep));
+
             `TX_ASSERT($stable(tlast));
+
             if (id_width > 0)
                 `TX_ASSERT($stable(tid));
             if (dest_width > 0)
