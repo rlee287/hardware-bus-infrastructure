@@ -6,7 +6,7 @@
 < module axi_stream_master_monitor #(
 ---
 > module axi_stream_slave_monitor #(
-67c67
+54c54
 < `define TX_ASSERT assert
 ---
 > `define TX_ASSERT assume

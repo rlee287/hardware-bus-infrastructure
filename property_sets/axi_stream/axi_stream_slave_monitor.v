@@ -47,6 +47,8 @@ module axi_stream_slave_monitor #(
 
     // TODO add output signals for byte counts, etc.
 );
+`define TX_ASSERT assume
+
     reg past_valid = 1'b0;
     always @(posedge clk)
         past_valid <= 1'b1;
@@ -67,8 +69,6 @@ module axi_stream_slave_monitor #(
         else
             assign in_reset = !resetn_delayed;
     endgenerate
-
-`define TX_ASSERT assume
 
     // TODO handle an asynchronous aresetn
 
