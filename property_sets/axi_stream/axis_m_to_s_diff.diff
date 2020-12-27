@@ -1,8 +1,12 @@
-8c8
+4c4
+<  * A set of formal properties for the master port of AXI-Stream.
+---
+>  * A set of formal properties for the slave port of AXI-Stream.
+13c13
 < module axi_stream_master_monitor #(
 ---
 > module axi_stream_slave_monitor #(
-62c62
+67c67
 < `define TX_ASSERT assert
 ---
 > `define TX_ASSERT assume

@@ -1,6 +1,11 @@
 `default_nettype none
 
 /*
+ * A set of formal properties for the slave port of AXI-Stream.
+ * AXI4-Stream, Version 1.0, Issue A
+ */
+
+/*
  * Section 2.1 Signal list
  * Section 3.1 Default value signaling
  * Notes on defaults for specific signals in port list below
