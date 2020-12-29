@@ -25,7 +25,7 @@ module axi_stream_slave_monitor #(
     input wire resetn,
 
     input wire tvalid,
-    // Section 3.1.1 Optional TREADY:
+    // Section 3.1.1 Optional TREADY
     // Having a tready port is recommended
 `ifndef VERILATOR
     input wire tready = 1'b1,
