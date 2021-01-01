@@ -52,26 +52,36 @@ module axi_stream_slave_monitor #(
     // TODO add output signals for byte counts, etc.
 );
 `define TX_ASSERT assume
+`define NOT_RESET_FOR_REGISTERED ($past(resetn) && (!USE_ASYNC_RESET || resetn))
 
     reg past_valid = 1'b0;
     always @(posedge clk)
         past_valid <= 1'b1;
 
-    wire in_reset;
-    reg resetn_delayed;
-    always @(posedge clk)
-        resetn_delayed <= resetn;
+    reg not_in_reset;
 
     /* 
-     * If in async mode, reset is combinational
-     * If in sync mode, reset is registered
-     * WARNING: there may be off-by-(timestep) errors for reset release
+     * If in async mode, reset is registered by async flip flop
+     * If in sync mode, reset is registered by sync flip flop
+     *
+     * WARNING: Only use this in combinational blocks
+     * Use in registered blocks makes this incorrect by a clock cycle delay
+     * Use `NOT_RESET_FOR_REGISTERED for registered blocks
      */
     generate
         if (USE_ASYNC_RESET)
-            assign in_reset = !resetn;
+            always @(posedge clk or negedge resetn)
+            begin
+                if (!resetn)
+                    not_in_reset <= 1'b0;
+                else
+                    not_in_reset <= resetn;
+            end
         else
-            assign in_reset = !resetn_delayed;
+            always @(posedge clk)
+            begin
+                not_in_reset <= resetn;
+            end
     endgenerate
 
     // TODO handle an asynchronous aresetn
@@ -84,18 +94,16 @@ module axi_stream_slave_monitor #(
         // Write this as (TVALID falls implies previous data transfer or reset)
         if (past_valid && $fell(tvalid))
         begin
-            `TX_ASSERT($past(tvalid && tready) || in_reset);
+            `TX_ASSERT($past(tvalid && tready) || !`NOT_RESET_FOR_REGISTERED);
         end
     end
 
-    // Master cannot wait on TREADY to signal TVALID
-    // TODO write out the below statement in Yosys-readable SVA
-    // `TX_ASSERT possible((always !tready) && (eventually tvalid))
+    // Slave can wait on TVALID to signal TREADY
 
     // When TVALID && !TREADY, data signals must be stable
     always @(posedge clk)
     begin
-        if (past_valid && !in_reset && $past(tvalid && !tready))
+        if (past_valid && `NOT_RESET_FOR_REGISTERED && $past(tvalid && !tready))
         begin
             if (byte_width > 0)
             begin
@@ -120,9 +128,11 @@ module axi_stream_slave_monitor #(
     // Unlike regular AXI there is no requirement for no combinational paths
 
     // Section 2.7.2 Reset
+    // "A master interface must only begin driving TVALID at a rising ACLK edge following a rising edge at which ARESETn is asserted HIGH."
+    // This timing is handled by the definition of !not_in_reset above
     always @(*)
     begin
-        if (in_reset)
+        if (!not_in_reset)
         begin
             `TX_ASSERT(!tvalid);
         end
@@ -139,3 +149,4 @@ module axi_stream_slave_monitor #(
     end
 endmodule
 `undef TX_ASSERT
+`undef NOT_RESET_FOR_REGISTERED
