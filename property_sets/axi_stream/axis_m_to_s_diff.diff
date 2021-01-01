@@ -6,7 +6,56 @@
 < module axi_stream_master_monitor #(
 ---
 > module axi_stream_slave_monitor #(
-54c54
+22,27c22
+< 
+<     parameter USE_ASYNC_RESET = 1'b0,
+<     // Section 2.2.1 Handshake process
+<     // Master cannot wait on TREADY to signal TVALID
+<     // Cycle count for TREADY to be kept low initially, after which TVALID should be high
+<     parameter MAX_DELAY_TREADY_NO_TVALID = 16
+---
+>     parameter USE_ASYNC_RESET = 1'b0
+59c54
 < `define TX_ASSERT assert
 ---
 > `define TX_ASSERT assume
+106,142c101
+<     // Master cannot wait on TREADY to signal TVALID
+<     // Property below modified from @awygle's suggestion
+<     generate
+<     if (MAX_DELAY_TREADY_NO_TVALID < 4096)
+<     begin
+<         reg f_ever_ready = 1'b0;
+<         reg [11:0] delay_counter = 0;
+<         always @(posedge clk)
+<         begin
+<             if (!resetn)
+<                 f_ever_ready <= 1'b0;
+<             else if (tready)
+<                 f_ever_ready <= 1'b1;
+<         end
+<         always @(posedge clk)
+<         begin
+<             // Else if check to prevent weirdness with overflow
+<             // 4096 cycles should be plenty enough though
+<             if (!resetn)
+<                 delay_counter <= 0;
+<             else if (delay_counter < 12'hfff)
+<                 delay_counter <= delay_counter + 1;
+<         end
+< 
+<         // Check that TVALID has been raised even if TREADY has been held low
+<         // In isolation, this checks the required property
+<         // In a full system (where TREADY may be tied high) a false hypothesis allows the property to pass vacuously
+<         always @(*)
+<         begin
+<             if (delay_counter == MAX_DELAY_TREADY_NO_TVALID
+<                     && !f_ever_ready)
+<                 assert(tvalid);
+<         end
+<     end
+<     else
+<         $error("MAX_DELAY_TREADY_NO_TVALID too large");
+<     endgenerate
+---
+>     // Slave can wait on TVALID to signal TREADY
