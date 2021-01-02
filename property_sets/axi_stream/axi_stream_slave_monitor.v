@@ -129,10 +129,10 @@ module axi_stream_slave_monitor #(
 
     // Section 2.7.2 Reset
     // "A master interface must only begin driving TVALID at a rising ACLK edge following a rising edge at which ARESETn is asserted HIGH."
-    // This timing is handled by the definition of !not_in_reset above
+    // This timing is handled by the definition of not_in_reset above
     always @(*)
     begin
-        if (!not_in_reset)
+        if (past_valid && !not_in_reset)
         begin
             `TX_ASSERT(!tvalid);
         end
