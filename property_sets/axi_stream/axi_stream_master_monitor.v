@@ -127,13 +127,20 @@ module axi_stream_master_monitor #(
                 delay_counter <= delay_counter + 1;
         end
 
+        always @(*)
+        begin
+            // Helper assert to justify lack of past_valid for below property
+            if (delay_counter > 0)
+                assert(past_valid);
+        end
+
         // Check that TVALID has been raised even if TREADY has been held low
         // In isolation, this checks the required property
         // In a full system (where TREADY may be tied high) a false hypothesis allows the property to pass vacuously
         always @(*)
         begin
             if (delay_counter == MAX_DELAY_TREADY_NO_TVALID
-                    && !f_ever_ready)
+                    && !f_ever_ready && not_in_reset)
                 assert(tvalid);
         end
     end
