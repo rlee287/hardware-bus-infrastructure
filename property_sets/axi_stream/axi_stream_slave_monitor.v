@@ -19,6 +19,8 @@ module axi_stream_slave_monitor #(
     // no TDATA -> no TSTRB (but TKEEP can still exist)
     // TKEEP width when byte_width=0
     parameter keep_width = 0,
+
+    // TODO: properties untested for multiclock environments
     parameter USE_ASYNC_RESET = 1'b0
 ) (
     input wire clk,
@@ -83,8 +85,7 @@ module axi_stream_slave_monitor #(
                 not_in_reset <= resetn;
             end
     endgenerate
-
-    // TODO handle an asynchronous aresetn
+    // TODO reset signal generation is quite messy right now
 
     // Section 2.2.1 Handshake process
 

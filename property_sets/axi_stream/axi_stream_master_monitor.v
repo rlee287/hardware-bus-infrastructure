@@ -20,6 +20,7 @@ module axi_stream_master_monitor #(
     // TKEEP width when byte_width=0
     parameter keep_width = 0,
 
+    // TODO: properties untested for multiclock environments
     parameter USE_ASYNC_RESET = 1'b0,
     // Section 2.2.1 Handshake process
     // Master cannot wait on TREADY to signal TVALID
@@ -88,8 +89,7 @@ module axi_stream_master_monitor #(
                 not_in_reset <= resetn;
             end
     endgenerate
-
-    // TODO handle an asynchronous aresetn
+    // TODO reset signal generation is quite messy right now
 
     // Section 2.2.1 Handshake process
 
