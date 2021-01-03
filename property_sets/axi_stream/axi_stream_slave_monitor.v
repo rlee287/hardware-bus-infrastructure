@@ -23,8 +23,8 @@ module axi_stream_slave_monitor #(
     // TODO: properties untested for multiclock environments
     parameter USE_ASYNC_RESET = 1'b0
 ) (
-    input wire clk,
-    input wire resetn,
+    input wire aclk,
+    input wire aresetn,
 
     input wire tvalid,
     // Section 3.1.1 Optional TREADY
@@ -54,10 +54,10 @@ module axi_stream_slave_monitor #(
     // TODO add output signals for byte counts, etc.
 );
 `define TX_ASSERT assume
-`define NOT_RESET_FOR_REGISTERED ($past(resetn) && (!USE_ASYNC_RESET || resetn))
+`define NOT_RESET_FOR_REGISTERED ($past(aresetn) && (!USE_ASYNC_RESET || aresetn))
 
     reg past_valid = 1'b0;
-    always @(posedge clk)
+    always @(posedge aclk)
         past_valid <= 1'b1;
 
     reg not_in_reset;
@@ -72,17 +72,17 @@ module axi_stream_slave_monitor #(
      */
     generate
         if (USE_ASYNC_RESET)
-            always @(posedge clk or negedge resetn)
+            always @(posedge aclk or negedge aresetn)
             begin
-                if (!resetn)
+                if (!aresetn)
                     not_in_reset <= 1'b0;
                 else
-                    not_in_reset <= resetn;
+                    not_in_reset <= aresetn;
             end
         else
-            always @(posedge clk)
+            always @(posedge aclk)
             begin
-                not_in_reset <= resetn;
+                not_in_reset <= aresetn;
             end
     endgenerate
     // TODO reset signal generation is quite messy right now
@@ -90,7 +90,7 @@ module axi_stream_slave_monitor #(
     // Section 2.2.1 Handshake process
 
     // Once TVALID is asserted it must be held until TVALID && TREADY
-    always @(posedge clk)
+    always @(posedge aclk)
     begin
         // Write this as (TVALID falls implies previous data transfer or reset)
         if (past_valid && $fell(tvalid))
@@ -102,7 +102,7 @@ module axi_stream_slave_monitor #(
     // Slave can wait on TVALID to signal TREADY
 
     // When TVALID && !TREADY, data signals must be stable
-    always @(posedge clk)
+    always @(posedge aclk)
     begin
         if (past_valid && `NOT_RESET_FOR_REGISTERED && $past(tvalid && !tready))
         begin

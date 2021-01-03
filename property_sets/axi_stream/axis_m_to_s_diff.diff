@@ -26,18 +26,18 @@
 <     begin
 <         reg f_ever_ready = 1'b0;
 <         reg [11:0] delay_counter = 0;
-<         always @(posedge clk)
+<         always @(posedge aclk)
 <         begin
-<             if (!resetn)
+<             if (!aresetn)
 <                 f_ever_ready <= 1'b0;
 <             else if (tready)
 <                 f_ever_ready <= 1'b1;
 <         end
-<         always @(posedge clk)
+<         always @(posedge aclk)
 <         begin
 <             // Else if check to prevent weirdness with overflow
 <             // 4096 cycles should be plenty enough though
-<             if (!resetn)
+<             if (!aresetn)
 <                 delay_counter <= 0;
 <             else if (delay_counter < 12'hfff)
 <                 delay_counter <= delay_counter + 1;
