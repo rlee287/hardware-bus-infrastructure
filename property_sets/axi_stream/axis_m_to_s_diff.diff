@@ -18,7 +18,7 @@
 < `define TX_ASSERT assert
 ---
 > `define TX_ASSERT assume
-106,149c102
+106,150c102
 <     // Master cannot wait on TREADY to signal TVALID
 <     // Property below modified from @awygle's suggestion
 <     generate
@@ -53,6 +53,7 @@
 <         // Check that TVALID has been raised even if TREADY has been held low
 <         // In isolation, this checks the required property
 <         // In a full system (where TREADY may be tied high) a false hypothesis allows the property to pass vacuously
+<         // TODO: optional assumption for slave properties?
 <         always @(*)
 <         begin
 <             if (delay_counter == MAX_DELAY_TREADY_NO_TVALID

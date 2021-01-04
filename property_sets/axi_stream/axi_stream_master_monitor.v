@@ -137,6 +137,7 @@ module axi_stream_master_monitor #(
         // Check that TVALID has been raised even if TREADY has been held low
         // In isolation, this checks the required property
         // In a full system (where TREADY may be tied high) a false hypothesis allows the property to pass vacuously
+        // TODO: optional assumption for slave properties?
         always @(*)
         begin
             if (delay_counter == MAX_DELAY_TREADY_NO_TVALID
