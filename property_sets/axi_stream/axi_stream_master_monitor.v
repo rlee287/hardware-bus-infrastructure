@@ -25,6 +25,7 @@ module axi_stream_master_monitor #(
     // Section 2.2.1 Handshake process
     // Master cannot wait on TREADY to signal TVALID
     // Cycle count for TREADY to be kept low initially, after which TVALID should be high
+    // Set to 0 to disable this check
     parameter MAX_DELAY_TREADY_NO_TVALID = 16
 ) (
     input wire aclk,
@@ -106,7 +107,7 @@ module axi_stream_master_monitor #(
     // Master cannot wait on TREADY to signal TVALID
     // Property below modified from @awygle's suggestion
     generate
-    if (MAX_DELAY_TREADY_NO_TVALID < 4096)
+    if (MAX_DELAY_TREADY_NO_TVALID < 4096 && MAX_DELAY_TREADY_NO_TVALID > 0)
     begin
         reg f_ever_ready = 1'b0;
         reg [11:0] delay_counter = 0;
@@ -145,7 +146,7 @@ module axi_stream_master_monitor #(
                 assert(tvalid);
         end
     end
-    else
+    else if (MAX_DELAY_TREADY_NO_TVALID != 0)
         $error("MAX_DELAY_TREADY_NO_TVALID too large");
     endgenerate
 
