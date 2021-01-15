@@ -1,0 +1,4 @@
+# Output folders from SymbiYosys (by task name convention)
+*_bmc/
+*_cover/
+*_prove/
