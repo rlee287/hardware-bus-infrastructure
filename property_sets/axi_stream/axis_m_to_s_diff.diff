@@ -1,0 +1,69 @@
+4c4
+<  * A set of formal properties for the master port of AXI-Stream.
+---
+>  * A set of formal properties for the slave port of AXI-Stream.
+13c13
+< module axi_stream_master_monitor #(
+---
+> module axi_stream_slave_monitor #(
+24,29c24
+<     parameter USE_ASYNC_RESET = 1'b0,
+<     // Section 2.2.1 Handshake process
+<     // Master cannot wait on TREADY to signal TVALID
+<     // Cycle count for TREADY to be kept low initially, after which TVALID should be high
+<     // Set to 0 to disable this check
+<     parameter MAX_DELAY_TREADY_NO_TVALID = 16
+---
+>     parameter USE_ASYNC_RESET = 1'b0
+61c56
+< `define TX_ASSERT assert
+---
+> `define TX_ASSERT assume
+107,151c102
+<     // Master cannot wait on TREADY to signal TVALID
+<     // Property below modified from @awygle's suggestion
+<     generate
+<     if (MAX_DELAY_TREADY_NO_TVALID < 4096 && MAX_DELAY_TREADY_NO_TVALID > 0)
+<     begin
+<         reg f_ever_ready = 1'b0;
+<         reg [11:0] delay_counter = 0;
+<         always @(posedge aclk)
+<         begin
+<             if (!aresetn)
+<                 f_ever_ready <= 1'b0;
+<             else if (tready)
+<                 f_ever_ready <= 1'b1;
+<         end
+<         always @(posedge aclk)
+<         begin
+<             // Else if check to prevent weirdness with overflow
+<             // 4096 cycles should be plenty enough though
+<             if (!aresetn)
+<                 delay_counter <= 0;
+<             else if (delay_counter < 12'hfff)
+<                 delay_counter <= delay_counter + 1;
+<         end
+< 
+<         always @(*)
+<         begin
+<             // Helper assert to justify lack of past_valid for below property
+<             if (delay_counter > 0)
+<                 assert(past_valid);
+<         end
+< 
+<         // Check that TVALID has been raised even if TREADY has been held low
+<         // In isolation, this checks the required property
+<         // In a full system (where TREADY may be tied high) a false hypothesis allows the property to pass vacuously
+<         // TODO: optional assumption for slave properties?
+<         always @(*)
+<         begin
+<             if (delay_counter == MAX_DELAY_TREADY_NO_TVALID
+<                     && !f_ever_ready && not_in_reset)
+<                 assert(tvalid);
+<         end
+<     end
+<     else if (MAX_DELAY_TREADY_NO_TVALID != 0)
+<         $error("MAX_DELAY_TREADY_NO_TVALID too large");
+<     endgenerate
+---
+>     // Slave can wait on TVALID to signal TREADY
