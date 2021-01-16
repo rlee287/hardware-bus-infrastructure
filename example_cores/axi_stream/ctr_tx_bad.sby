@@ -1,0 +1,25 @@
+[tasks]
+bmc
+prove
+
+[options]
+bmc: mode bmc
+prove: mode prove
+depth 4
+
+[engines]
+smtbmc z3
+
+[script]
+read_verilog ctr_tx.v
+read_verilog -formal axi_stream_master_monitor.v
+read_verilog -formal axi_stream_slave_monitor.v
+read_verilog -formal ctr_tx_tb_formal.v
+hierarchy -chparam USE_CORRECT_RESETN 1'b0 -top axis_ctr_tx_tb_formal
+prep
+
+[files]
+ctr_tx.v
+ctr_tx_tb_formal.v
+../../property_sets/axi_stream/axi_stream_master_monitor.v
+../../property_sets/axi_stream/axi_stream_slave_monitor.v
