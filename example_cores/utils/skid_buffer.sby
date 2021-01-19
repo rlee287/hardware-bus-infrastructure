@@ -1,0 +1,29 @@
+[tasks]
+bmc
+prove
+cover
+
+[options]
+bmc: mode bmc
+prove: mode prove
+cover: mode cover
+depth 4
+cover: depth 8
+wait on
+
+[engines]
+smtbmc yices
+smtbmc z3
+
+[script]
+read_verilog -formal skid_buffer.v
+read_verilog -formal axi_stream_master_monitor.v
+read_verilog -formal axi_stream_slave_monitor.v
+read_verilog -formal skid_buffer_tb_formal.v
+prep -top skid_buffer_tb_formal
+
+[files]
+skid_buffer.v
+../../property_sets/axi_stream/axi_stream_master_monitor.v
+../../property_sets/axi_stream/axi_stream_slave_monitor.v
+skid_buffer_tb_formal.v
