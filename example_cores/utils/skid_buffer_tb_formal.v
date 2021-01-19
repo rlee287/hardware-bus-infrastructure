@@ -4,10 +4,10 @@ module skid_buffer_tb_formal (
 
     input wire [7:0] in_data,
     input wire in_valid,
-    output reg in_ready,
+    output wire in_ready,
 
-    output reg [7:0] out_data,
-    output reg out_valid,
+    output wire [7:0] out_data,
+    output wire out_valid,
     input wire out_ready
 );
     // We use a smaller width to speed proofs up
@@ -43,6 +43,21 @@ module skid_buffer_tb_formal (
         if (past_valid && !in_ever_valid)
             assert(!out_ever_valid);
     end
+
+    // Assert that receive=transmit or receive=transmit+1
+    // This is both more precise than <= and avoids overflow issues
+    reg [7:0] rx_count = 0;
+    reg [7:0] tx_count = 0;
+    always @(posedge clk)
+    begin
+        if (in_valid && in_ready)
+            rx_count <= rx_count + 1;
+        if (out_valid && out_ready)
+            tx_count <= tx_count + 1;
+    end
+
+    always @(*)
+        assert(rx_count == tx_count || rx_count == (tx_count + 8'h01));
 
     // If both are ready, assert passthrough
     always @(*)
