@@ -45,8 +45,7 @@ module skid_buffer_tb_formal (
     end
 
     // If both are ready, assert passthrough
-    // TODO: fails with always @(*), investigate?
-    always @(posedge clk)
+    always @(*)
         if (in_ready && out_ready)
         begin
             assert(in_valid == out_valid);
