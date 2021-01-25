@@ -29,7 +29,7 @@ module skid_buffer #(
         begin
             data_buffer <= in_data;
         end
-        in_valid_delayed <= in_ready;
+        in_valid_delayed <= in_valid;
         // Always delay in_ready from out_ready by a clock cycle
         in_ready <= out_ready;
     end
