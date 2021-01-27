@@ -21,7 +21,6 @@ module skid_buffer #(
 
     reg [DATA_WIDTH-1:0] data_buffer;
     reg in_valid_delayed = 1'b0;
-    reg use_data_in_buffer = 1'b0;
 
     always @(posedge clk)
     begin
@@ -34,13 +33,46 @@ module skid_buffer #(
         in_ready <= out_ready;
     end
 
+    reg past_valid = 1'b0;
     always @(posedge clk)
+        past_valid <= 1'b1;
+    always @(posedge clk)
+    begin
+        if (past_valid)
+        begin
+            assert(in_valid_delayed == $past(in_valid));
+            assert(in_ready == $past(out_ready));
+        end
+    end
+
+    reg use_data_in_buffer_prev = 1'b1;
+    reg use_data_in_buffer;
+    always @(*)
+    begin
+        if (in_ready && out_ready)
+            use_data_in_buffer = 1'b0;
+        else if (in_ready ^ out_ready) // Was in && !out
+            use_data_in_buffer = 1'b1;
+        else
+            use_data_in_buffer = use_data_in_buffer_prev;
+    end
+    always @(posedge clk)
+        use_data_in_buffer_prev <= use_data_in_buffer;
+    always @(posedge clk)
+    begin
+        if (past_valid)
+        begin
+            assert(use_data_in_buffer_prev == $past(use_data_in_buffer));
+        end
+    end
+
+    /*always @(posedge clk)
     begin
         if (in_ready && out_ready)
             use_data_in_buffer <= 1'b0;
         else if (in_ready && !out_ready)
             use_data_in_buffer <= 1'b1;
-    end
+    end*/
 
     // Mux the data and valid signal
     always @(*)

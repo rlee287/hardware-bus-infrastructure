@@ -7,7 +7,8 @@ cover
 bmc: mode bmc
 prove: mode prove
 cover: mode cover
-depth 8
+bmc: depth 8
+prove: depth 5
 cover: depth 8
 wait on
 
