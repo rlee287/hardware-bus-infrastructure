@@ -44,33 +44,39 @@ module skid_buffer_tb_formal (
             assert(!out_ever_valid);
     end
 
-    // Assert that receive=transmit or receive=transmit+1
-    // This is both more precise than <= and avoids overflow issues
+    // Make traces slightly easier to read
+    /*always @(posedge clk)
+        if (!(in_valid && !in_ready))
+            assume(!$stable(in_data));*/
+
+    wire rx_data;
+    wire tx_data;
+    assign rx_data = in_valid && in_ready;
+    assign tx_data = out_valid && out_ready;
     reg [7:0] rx_count = 0;
     reg [7:0] tx_count = 0;
     always @(posedge clk)
     begin
-        if (in_valid && in_ready)
+        if (rx_data)
             rx_count <= rx_count + 1;
-        if (out_valid && out_ready)
+        if (tx_data)
             tx_count <= tx_count + 1;
     end
+    wire [7:0] rx_tx_diff;
+    assign rx_tx_diff = rx_count - tx_count;
 
     always @(*)
-        assert(rx_count == tx_count || rx_count == (tx_count + 8'h01));
+        // Signed overflow means maximum diff value, which triggers assert
+        // No need to make diff signed and assert >= 0
+        assert(rx_tx_diff <= 2);
 
     // If both are ready, assert passthrough
-    always @(*)
+    /*always @(*)
         if (in_ready && out_ready)
         begin
             assert(in_valid == out_valid);
             assert(in_data == out_data);
-        end
-    
-    // Assert that in_ready is the delayed version of out_ready
-    always @(posedge clk)
-        if (past_valid)
-            assert(in_ready == $past(out_ready));
+        end*/
     
     reg [7:0] input_reg;
 
