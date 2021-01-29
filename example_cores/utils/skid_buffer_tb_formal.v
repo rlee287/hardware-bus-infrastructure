@@ -1,18 +1,21 @@
+`default_nettype none
+
+`define DATA_WIDTH_TEST 8
 module skid_buffer_tb_formal (
     input wire clk,
     //input wire resetn, // needed?
 
-    input wire [7:0] in_data,
+    input wire [`DATA_WIDTH_TEST-1:0] in_data,
     input wire in_valid,
     output wire in_ready,
 
-    output wire [7:0] out_data,
+    output wire [`DATA_WIDTH_TEST-1:0] out_data,
     output wire out_valid,
     input wire out_ready
 );
     // We use a smaller width to speed proofs up
     skid_buffer #(
-        .DATA_WIDTH(8)
+        .DATA_WIDTH(`DATA_WIDTH_TEST)
     ) DUT (
         .clk(clk),
         //.resetn(resetn)
@@ -53,8 +56,8 @@ module skid_buffer_tb_formal (
     wire tx_data;
     assign rx_data = in_valid && in_ready;
     assign tx_data = out_valid && out_ready;
-    reg [7:0] rx_count = 0;
-    reg [7:0] tx_count = 0;
+    reg [3:0] rx_count = 0;
+    reg [3:0] tx_count = 0;
     always @(posedge clk)
     begin
         if (rx_data)
@@ -62,23 +65,12 @@ module skid_buffer_tb_formal (
         if (tx_data)
             tx_count <= tx_count + 1;
     end
-    wire [7:0] rx_tx_diff;
+    wire [3:0] rx_tx_diff;
     assign rx_tx_diff = rx_count - tx_count;
 
-    always @(*)
-        // Signed overflow means maximum diff value, which triggers assert
-        // No need to make diff signed and assert >= 0
-        assert(rx_tx_diff <= 2);
-
-    // If both are ready, assert passthrough
-    /*always @(*)
-        if (in_ready && out_ready)
-        begin
-            assert(in_valid == out_valid);
-            assert(in_data == out_data);
-        end*/
-    
-    reg [7:0] input_reg;
+    // Cover example run
+    always @(posedge clk)
+        cover(tx_count == 3 && $past(!tx_data,2));
 
     // These are generified AXI-Stream ports, so use those properties here
     wire resetn_const;
@@ -90,7 +82,7 @@ module skid_buffer_tb_formal (
     assign tlast_const = 1'b1;
     
     axi_stream_master_monitor #(
-        .byte_width(1),
+        .byte_width(`DATA_WIDTH_TEST/8),
         .id_width(0),
         .dest_width(0),
         .user_width(0),
@@ -107,7 +99,7 @@ module skid_buffer_tb_formal (
         .tlast(tlast_const)
     );
     axi_stream_slave_monitor #(
-        .byte_width(1),
+        .byte_width(`DATA_WIDTH_TEST/8),
         .id_width(0),
         .dest_width(0),
         .user_width(0),
@@ -123,3 +115,4 @@ module skid_buffer_tb_formal (
         .tlast(tlast_const)
     );
 endmodule
+`undef DATA_WIDTH_TEST

@@ -131,7 +131,7 @@ module skid_buffer #(
     begin
         if (fill)
             stall_buffer_written <= 1'b1;
-        else if (flush)
+        else if (flush || state == FULL)
             assert(stall_buffer_written);
     end
 
@@ -147,6 +147,30 @@ module skid_buffer #(
             assert(!tx_data);
         else if (state == FULL)
             assert(!rx_data);
+    end
+
+    reg [3:0] rx_count = 0;
+    reg [3:0] tx_count = 0;
+    always @(posedge clk)
+    begin
+        if (rx_data)
+            rx_count <= rx_count + 1;
+        if (tx_data)
+            tx_count <= tx_count + 1;
+    end
+    wire [3:0] rx_tx_diff;
+    assign rx_tx_diff = rx_count - tx_count;
+
+    always @(*)
+    begin
+        // Signed overflow means maximum diff value, which triggers assert
+        // No need to make diff signed and assert >= 0
+        assert(rx_tx_diff <= 2);
+        case (rx_tx_diff)
+            0: assert(state == EMPTY);
+            1: assert(state == BUSY);
+            2: assert(state == FULL);
+        endcase
     end
 `endif
 endmodule
