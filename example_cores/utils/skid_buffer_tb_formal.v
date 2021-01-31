@@ -72,7 +72,6 @@ module skid_buffer_tb_formal (
     always @(posedge clk)
         cover(tx_count == 3 && $past(!tx_occured,2));
 
-    // Check that matched 
     (* anyconst *) reg [3:0] handshake_index;
     reg [`DATA_WIDTH_TEST-1:0] data_recv;
     reg data_recv_initialized = 1'b0;
@@ -87,9 +86,6 @@ module skid_buffer_tb_formal (
             data_recv <= in_data;
             data_recv_initialized <= 1'b1;
         end
-    end
-    always @(posedge clk)
-    begin
         if (handshake_index == tx_count && tx_occured && data_recv_initialized)
         begin
             data_recv_initialized <= 1'b0;
