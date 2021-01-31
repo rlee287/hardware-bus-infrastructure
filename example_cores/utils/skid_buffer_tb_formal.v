@@ -52,17 +52,17 @@ module skid_buffer_tb_formal (
         if (!(in_valid && !in_ready))
             assume(!$stable(in_data));*/
 
-    wire rx_data;
-    wire tx_data;
-    assign rx_data = in_valid && in_ready;
-    assign tx_data = out_valid && out_ready;
-    reg [3:0] rx_count = 0;
-    reg [3:0] tx_count = 0;
+    wire rx_occured;
+    wire tx_occured;
+    assign rx_occured = in_valid && in_ready;
+    assign tx_occured = out_valid && out_ready;
+    reg [3:0] rx_count = 4'h0;
+    reg [3:0] tx_count = 4'h0;
     always @(posedge clk)
     begin
-        if (rx_data)
+        if (rx_occured)
             rx_count <= rx_count + 1;
-        if (tx_data)
+        if (tx_occured)
             tx_count <= tx_count + 1;
     end
     wire [3:0] rx_tx_diff;
@@ -70,7 +70,32 @@ module skid_buffer_tb_formal (
 
     // Cover example run
     always @(posedge clk)
-        cover(tx_count == 3 && $past(!tx_data,2));
+        cover(tx_count == 3 && $past(!tx_occured,2));
+
+    // Check that matched 
+    (* anyconst *) reg [3:0] handshake_index;
+    reg [`DATA_WIDTH_TEST-1:0] data_recv;
+    reg data_recv_initialized = 1'b0;
+
+    // Record nth data packet input (where n is an arbitrary constant)
+    // n being arbitrary should also enforce ordering constraints
+    // TODO: check that ordering is properly enforced
+    always @(posedge clk)
+    begin
+        if (handshake_index == rx_count && rx_occured)
+        begin
+            data_recv <= in_data;
+            data_recv_initialized <= 1'b1;
+        end
+    end
+    always @(posedge clk)
+    begin
+        if (handshake_index == tx_count && tx_occured && data_recv_initialized)
+        begin
+            data_recv_initialized <= 1'b0;
+            assert(out_data == data_recv);
+        end
+    end
 
     // These are generified AXI-Stream ports, so use those properties here
     wire resetn_const;
