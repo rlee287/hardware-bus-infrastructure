@@ -25,10 +25,10 @@ module skid_buffer #(
         past_valid <= 1'b1;
 `endif
 
-    wire rx_data;
-    wire tx_data;
-    assign rx_data = (in_valid && in_ready);
-    assign tx_data = (out_valid && out_ready);
+    wire rx_occured;
+    wire tx_occured;
+    assign rx_occured = (in_valid && in_ready);
+    assign tx_occured = (out_valid && out_ready);
 
     // Hand-optimized FSM encoding
     localparam [1:0] EMPTY = 2'b10;
@@ -60,15 +60,17 @@ module skid_buffer #(
     wire flush; // Move data from buffer register into output register. Remove old data. No new data inserted.
     wire unload; // Remove data from output register, leaving the datapath empty.
 
-    assign load = (state == EMPTY) && (rx_data == 1'b1) && (tx_data == 1'b0);
-    assign flow = (state == BUSY) && (rx_data == 1'b1) && (tx_data == 1'b1);
-    assign fill = (state == BUSY) && (rx_data == 1'b1) && (tx_data == 1'b0);
-    assign flush = (state == FULL) && (rx_data == 1'b0) && (tx_data == 1'b1);
-    assign unload = (state == BUSY) && (rx_data == 1'b0) && (tx_data == 1'b1);
+    assign load = (state == EMPTY) && (rx_occured == 1'b1) && (tx_occured == 1'b0);
+    assign flow = (state == BUSY) && (rx_occured == 1'b1) && (tx_occured == 1'b1);
+    assign fill = (state == BUSY) && (rx_occured == 1'b1) && (tx_occured == 1'b0);
+    assign flush = (state == FULL) && (rx_occured == 1'b0) && (tx_occured == 1'b1);
+    assign unload = (state == BUSY) && (rx_occured == 1'b0) && (tx_occured == 1'b1);
 
 `ifdef FORMAL
     wire [4:0] fsm_aggregate;
     assign fsm_aggregate = {load, flow, fill, flush, unload};
+    // Sanity check: assert that at most one edge is active
+    // Yosys doesn't support $onehot0 so we expand it manually
     always @(*)
         //assert($onehot0({load, flow, fill, flush, unload}));
         assert(fsm_aggregate == 5'b00000
@@ -105,10 +107,6 @@ module skid_buffer #(
     //reg [DATA_WIDTH-1:0] out_data_buffer;
     reg [DATA_WIDTH-1:0] stall_data_buffer;
 
-`ifdef FORMAL
-    reg stall_buffer_written = 1'b0;
-`endif
-
     always @(posedge clk)
     begin
         if (flush)
@@ -127,35 +125,40 @@ module skid_buffer #(
     end
 
 `ifdef FORMAL
+    // Assert that valid data is flushed from stall buffer
+    // Probably unneeded given verification state machine below
+    /*reg stall_buffer_written = 1'b0;
     always @(posedge clk)
     begin
         if (fill)
             stall_buffer_written <= 1'b1;
         else if (flush || state == FULL)
             assert(stall_buffer_written);
-    end
+    end*/
 
+    // Assert that there is no state change when no data flows
     always @(posedge clk)
     begin
-        if (past_valid && !rx_data && !tx_data)
+        if (past_valid && !rx_occured && !tx_occured)
             assert($stable(state_next));
     end
 
+    // Assert that empty/full states stall the correct channels
     always @(*)
     begin
         if (state == EMPTY)
-            assert(!tx_data);
+            assert(!tx_occured);
         else if (state == FULL)
-            assert(!rx_data);
+            assert(!rx_occured);
     end
 
     reg [3:0] rx_count = 0;
     reg [3:0] tx_count = 0;
     always @(posedge clk)
     begin
-        if (rx_data)
+        if (rx_occured)
             rx_count <= rx_count + 1;
-        if (tx_data)
+        if (tx_occured)
             tx_count <= tx_count + 1;
     end
     wire [3:0] rx_tx_diff;
@@ -171,6 +174,54 @@ module skid_buffer #(
             1: assert(state == BUSY);
             2: assert(state == FULL);
         endcase
+    end
+
+    (* anyconst *) reg [3:0] handshake_index;
+    reg [DATA_WIDTH-1:0] data_recv;
+    reg [1:0] verification_state = 2'b00;
+
+    // Record nth data packet input (where n is an arbitrary constant)
+    // n being arbitrary should also enforce ordering constraints
+    // TODO: check that ordering is properly enforced
+    always @(posedge clk)
+    begin
+        case (verification_state)
+            2'b00:
+            begin
+                if (handshake_index == rx_count && rx_occured)
+                begin
+                    data_recv <= in_data;
+                    if (fill)
+                        verification_state <= 2'b01;
+                    else
+                    begin
+                        assert(load || flow);
+                        verification_state <= 2'b10;
+                    end
+                end
+            end
+            2'b01:
+            begin
+                assert(state == FULL);
+                assert(stall_data_buffer == data_recv);
+                if (flush)
+                    verification_state <= 2'b10;
+            end
+            2'b10:
+            begin
+                if (past_valid && $past(verification_state != 2'b10))
+                    assert(state == BUSY);
+                else
+                    assert(state == BUSY || state == FULL);
+                if (out_valid)
+                begin
+                    assert(out_data == data_recv);
+                    if (tx_occured)
+                        verification_state <= 2'b00;
+                end
+            end
+        endcase
+        assert(verification_state <= 2'b10);
     end
 `endif
 endmodule
