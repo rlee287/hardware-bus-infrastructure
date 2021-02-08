@@ -6,6 +6,7 @@
  * Based on the design of http://fpgacpu.ca/fpga/Pipeline_Skid_Buffer.html
  */
 module skid_buffer #(
+    parameter USE_ASYNC_RESET = 1'b0,
     parameter DATA_WIDTH = 32
 ) (
     input wire clk,
@@ -25,6 +26,19 @@ module skid_buffer #(
         past_valid <= 1'b1;
 `endif
 
+    reg reset_asserted = 1'b0;
+    generate
+        if (USE_ASYNC_RESET)
+            always @(posedge clk or posedge reset)
+                if (reset)
+                    reset_asserted <= 1'b1;
+                else
+                    reset_asserted <= reset;
+        else
+            always @(posedge clk)
+                reset_asserted <= reset;
+    endgenerate
+
     wire rx_occured;
     wire tx_occured;
     assign rx_occured = (in_valid && in_ready);
@@ -38,8 +52,20 @@ module skid_buffer #(
     reg [1:0] state = EMPTY;
     reg [1:0] state_next = EMPTY;
 
-    always @(posedge clk)
-        state <= state_next;
+    generate
+        if (USE_ASYNC_RESET)
+            // Correct reset behavior is done in comb process below
+            always @(posedge clk or posedge reset)
+            begin
+                if (reset)
+                    state <= EMPTY;
+                else
+                    state <= state_next;
+            end
+        else
+            always @(posedge clk)
+                state <= state_next;
+    endgenerate
 
     // Sanity-check assertions to avoid breakage when refactoring
 `ifdef FORMAL
@@ -49,7 +75,9 @@ module skid_buffer #(
         assert(state_next != 2'b00);
     end
     always @(posedge clk)
-        if (past_valid)
+        // Avoid checking if async reset and reset asserted
+        // That case is verified elsewhere
+        if (past_valid && (!USE_ASYNC_RESET && !reset))
             assert(state == $past(state_next));
 `endif
 
@@ -83,25 +111,30 @@ module skid_buffer #(
 
     always @(*)
     begin
-        state_next = state; // Default: keep current state
-        case (state)
-            EMPTY:
-                if (load)
-                    state_next = BUSY;
-            BUSY:
-                if (fill)
-                    state_next = FULL;
-                else if (unload)
-                    state_next = EMPTY;
-            FULL:
-                if (flush)
-                    state_next = BUSY;
-            // default should never happen, by assert above
-        endcase
+        if (reset)
+            state_next = EMPTY;
+        else
+        begin
+            state_next = state; // Default: keep current state
+            case (state)
+                EMPTY:
+                    if (load)
+                        state_next = BUSY;
+                BUSY:
+                    if (fill)
+                        state_next = FULL;
+                    else if (unload)
+                        state_next = EMPTY;
+                FULL:
+                    if (flush)
+                        state_next = BUSY;
+                // default should never happen, by assert above
+            endcase
+        end
     end
 
     // Custom state encoding implies these should be simple wire connects
-    assign in_ready = (state != FULL);
+    assign in_ready = (state != FULL) && !reset_asserted;
     assign out_valid = (state != EMPTY);
 
     //reg [DATA_WIDTH-1:0] out_data_buffer;
@@ -136,10 +169,22 @@ module skid_buffer #(
             assert(stall_buffer_written);
     end*/
 
+    // Assert that reset causes appropriate state change and non-ready
+    always @(*)
+    begin
+        if (reset_asserted)
+        begin
+            assert(state == EMPTY);
+            if (USE_ASYNC_RESET)
+                assert(state_next == EMPTY);
+            assert(!in_ready);
+        end
+    end
+
     // Assert that there is no state change when no data flows
     always @(posedge clk)
     begin
-        if (past_valid && !rx_occured && !tx_occured)
+        if (past_valid && !rx_occured && !tx_occured && !reset)
             assert($stable(state_next));
     end
 
@@ -154,13 +199,50 @@ module skid_buffer #(
 
     reg [3:0] rx_count = 0;
     reg [3:0] tx_count = 0;
-    always @(posedge clk)
+    reg [3:0] rx_count_next = 0;
+    reg [3:0] tx_count_next = 0;
+    always @(*)
     begin
-        if (rx_occured)
-            rx_count <= rx_count + 1;
-        if (tx_occured)
-            tx_count <= tx_count + 1;
+        if (reset)
+        begin
+            rx_count_next <= 0;
+            tx_count_next <= 0;
+        end
+        else
+        begin
+            if (rx_occured)
+                rx_count_next <= rx_count + 1;
+            if (tx_occured)
+                tx_count_next <= tx_count + 1;
+        end
     end
+
+    generate
+        if (USE_ASYNC_RESET)
+            // Correct reset behavior is done in comb process below
+            always @(posedge clk or posedge reset)
+            begin
+                if (reset)
+                begin
+                    rx_count <= 0;
+                    tx_count <= 0;
+                    assert(rx_count_next == 0);
+                    assert(tx_count_next == 0);
+                end
+                else
+                begin
+                    rx_count <= rx_count_next;
+                    tx_count <= tx_count_next;
+                end
+            end
+        else
+            always @(posedge clk)
+            begin
+                rx_count <= rx_count_next;
+                tx_count <= tx_count_next;
+            end
+    endgenerate
+
     wire [3:0] rx_tx_diff;
     assign rx_tx_diff = rx_count - tx_count;
 
@@ -179,49 +261,84 @@ module skid_buffer #(
     (* anyconst *) reg [3:0] handshake_index;
     reg [DATA_WIDTH-1:0] data_recv;
     reg [1:0] verification_state = 2'b00;
+    reg [1:0] verification_state_next = 2'b00;
 
     // Record nth data packet input (where n is an arbitrary constant)
     // n being arbitrary should also enforce ordering constraints
     // TODO: check that ordering is properly enforced
-    always @(posedge clk)
+    always @(*) // FIX SENSITIVITY
     begin
-        case (verification_state)
-            2'b00:
-            begin
-                if (handshake_index == rx_count && rx_occured)
+        if (reset)
+            verification_state_next <= 2'b00;
+        else
+        begin
+            case (verification_state)
+                2'b00:
                 begin
-                    data_recv <= in_data;
-                    if (fill)
-                        verification_state <= 2'b01;
-                    else
+                    if (handshake_index == rx_count && rx_occured)
                     begin
-                        assert(load || flow);
-                        verification_state <= 2'b10;
+                        data_recv <= in_data;
+                        if (fill)
+                            verification_state_next <= 2'b01;
+                        else
+                        begin
+                            assert(load || flow);
+                            verification_state_next <= 2'b10;
+                        end
                     end
                 end
-            end
-            2'b01:
+                2'b01:
+                begin
+                    assert(state == FULL);
+                    assert(stall_data_buffer == data_recv);
+                    if (flush)
+                        verification_state_next <= 2'b10;
+                end
+                2'b10:
+                begin
+                    if (out_valid)
+                    begin
+                        assert(out_data == data_recv);
+                        if (tx_occured)
+                            verification_state_next <= 2'b00;
+                    end
+                end
+            endcase
+        end
+        assert(verification_state <= 2'b10);
+        assert(verification_state_next <= 2'b10);
+    end
+
+    always @(posedge clk)
+    begin
+        if (past_valid && verification_state == 2'b10)
+            if($past(!reset) || (USE_ASYNC_RESET && !reset))
             begin
-                assert(state == FULL);
-                assert(stall_data_buffer == data_recv);
-                if (flush)
-                    verification_state <= 2'b10;
-            end
-            2'b10:
-            begin
-                if (past_valid && $past(verification_state != 2'b10))
+                if ($past(verification_state != 2'b10))
                     assert(state == BUSY);
                 else
                     assert(state == BUSY || state == FULL);
-                if (out_valid)
-                begin
-                    assert(out_data == data_recv);
-                    if (tx_occured)
-                        verification_state <= 2'b00;
-                end
             end
-        endcase
-        assert(verification_state <= 2'b10);
+            else
+                assert(state == EMPTY);
     end
+
+    generate
+        if (USE_ASYNC_RESET)
+            // Correct reset behavior is done in comb process below
+            always @(posedge clk or posedge reset)
+            begin
+                if (reset)
+                begin
+                    verification_state <= 2'b00;
+                    assert(verification_state_next == 2'b00);
+                end
+                else
+                    verification_state <= verification_state_next;
+            end
+        else
+            always @(posedge clk)
+                verification_state <= verification_state_next;
+    endgenerate
 `endif
 endmodule

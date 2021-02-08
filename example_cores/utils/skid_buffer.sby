@@ -1,7 +1,9 @@
 [tasks]
-bmc
-prove
-cover
+sync_bmc bmc sync
+async_bmc bmc async
+sync_prove prove sync
+async_prove prove async
+cover sync
 
 [options]
 bmc: mode bmc
@@ -20,7 +22,14 @@ read_verilog -formal skid_buffer.v
 read_verilog -formal axi_stream_master_monitor.v
 read_verilog -formal axi_stream_slave_monitor.v
 read_verilog -formal skid_buffer_tb_formal.v
-prep -top skid_buffer_tb_formal
+--pycode-begin--
+if "async" in tags:
+    async_param_val = "1'b1"
+else: # if "sync" in tags
+    async_param_val = "1'b0"
+output("hierarchy -top skid_buffer_tb_formal -chparam USE_ASYNC_RESET "+async_param_val)
+--pycode-end--
+prep
 
 [files]
 skid_buffer.v
