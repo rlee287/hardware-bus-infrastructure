@@ -5,6 +5,7 @@ prove
 [options]
 bmc: mode bmc
 prove: mode prove
+expect fail
 depth 4
 
 [engines]
