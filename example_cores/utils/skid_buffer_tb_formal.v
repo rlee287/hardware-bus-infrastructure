@@ -30,69 +30,6 @@ module skid_buffer_tb_formal #(
         .out_ready(out_ready)
     );
 
-    reg past_valid = 1'b0;
-    always @(posedge clk)
-        past_valid <= 1'b1;
-
-    // psl assert !out_valid until in_valid;
-    reg in_ever_valid = 1'b0;
-    reg out_ever_valid = 1'b0;
-    always @(posedge clk)
-    begin
-        if (reset)
-        begin
-            in_ever_valid <= 1'b0;
-            out_ever_valid <= 1'b0;
-        end
-        else
-        begin
-            if (in_valid)
-                in_ever_valid <= 1'b1;
-            if (out_valid)
-                out_ever_valid <= 1'b1;
-        end
-    end
-    always @(posedge clk)
-    begin
-        if (past_valid && !in_ever_valid)
-            assert(!out_ever_valid);
-    end
-
-    wire rx_occured;
-    wire tx_occured;
-    assign rx_occured = in_valid && in_ready;
-    assign tx_occured = out_valid && out_ready;
-    reg [3:0] rx_count = 4'h0;
-    reg [3:0] tx_count = 4'h0;
-    always @(posedge clk)
-    begin
-        if (reset)
-        begin
-            rx_count <= 0;
-            tx_count <= 0;
-        end
-        else
-        begin
-            if (rx_occured)
-                rx_count <= rx_count + 1;
-            if (tx_occured)
-                tx_count <= tx_count + 1;
-        end
-    end
-    wire [3:0] rx_tx_diff;
-    assign rx_tx_diff = rx_count - tx_count;
-
-
-    // Make traces easier to read for cover
-    reg in_data_was_never_stable = 1'b1;
-    always @(posedge clk)
-        if (past_valid && !(in_valid && !in_ready) && $stable(in_data))
-            in_data_was_never_stable <= 1'b0;
-    // Cover example run
-    always @(posedge clk)
-        cover(in_data_was_never_stable
-                && tx_count == 3 && $past(in_valid && !in_ready,2));
-
     // These are generified AXI-Stream ports, so use those properties here
     wire resetn;
     wire [0:0] tstrb_const;

@@ -180,6 +180,30 @@ module skid_buffer #(
             assert(!in_ready);
         end
     end
+    
+    // psl assert !out_valid until in_valid; + reset after reset;
+    reg in_ever_valid = 1'b0;
+    reg out_ever_valid = 1'b0;
+    always @(posedge clk)
+    begin
+        if (reset)
+        begin
+            in_ever_valid <= 1'b0;
+            out_ever_valid <= 1'b0;
+        end
+        else
+        begin
+            if (in_valid)
+                in_ever_valid <= 1'b1;
+            if (out_valid)
+                out_ever_valid <= 1'b1;
+        end
+    end
+    always @(posedge clk)
+    begin
+        if (past_valid && !in_ever_valid)
+            assert(!out_ever_valid);
+    end
 
     // Assert that there is no state change when no data flows
     always @(posedge clk)
@@ -266,7 +290,7 @@ module skid_buffer #(
     // Record nth data packet input (where n is an arbitrary constant)
     // n being arbitrary should also enforce ordering constraints
     // TODO: check that ordering is properly enforced
-    always @(*) // FIX SENSITIVITY
+    always @(*)
     begin
         if (reset)
             verification_state_next <= 2'b00;
@@ -340,5 +364,63 @@ module skid_buffer #(
             always @(posedge clk)
                 verification_state <= verification_state_next;
     endgenerate
+
+    // Cover (only do cover in sync mode)
+    // Make traces easier to read for cover
+    reg in_data_cover_readable = 1'b1;
+    localparam [DATA_WIDTH-1] incr_sized = 1;
+    always @(posedge clk)
+        if (past_valid && !(in_valid && !in_ready)
+                && in_data != $past(in_data+incr_sized))
+            in_data_cover_readable <= 1'b0;
+    reg [3:0] cover_state = 4'h0;
+    reg invalid_cover_state_happened = 1'b0;
+
+    always @(posedge clk)
+    begin
+        if (reset)
+            cover_state <= 4'h0;
+        else
+        begin
+            case (cover_state)
+                4'h0:
+                begin
+                    if (fill)
+                        cover_state <= 4'h1;
+                    else if (unload)
+                        cover_state <= 4'h8;
+                end
+                4'h1:
+                    if (flush)
+                        cover_state <= 4'h2;
+                4'h2:
+                    if (flow)
+                        cover_state <= 4'h3;
+                4'h3:
+                    if (flow)
+                        cover_state <= 4'h0;
+                4'h8:
+                    if (unload)
+                        cover_state <= 4'h9;
+                4'h9:
+                    if (load)
+                        cover_state <= 4'ha;
+                4'ha:
+                    if (flow)
+                        cover_state <= 4'h0;
+                default: invalid_cover_state_happened <= 1'b1;
+            endcase
+        end
+    end
+
+    always @(posedge clk)
+    begin
+        assert(!invalid_cover_state_happened);
+        if (past_valid && $past(!reset) && !reset && cover_state == 4'h0)
+        begin
+            cover($past(cover_state == 4'h3) && in_data_cover_readable);
+            cover($past(cover_state == 4'ha) && in_data_cover_readable);
+        end
+    end
 `endif
 endmodule
