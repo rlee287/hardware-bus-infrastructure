@@ -216,9 +216,14 @@ module skid_buffer #(
     always @(*)
     begin
         if (state == EMPTY)
+        begin
             assert(!tx_occured);
-        else if (state == FULL)
+        end
+        else
+        if (state == FULL)
+        begin
             assert(!rx_occured);
+        end
     end
 
     reg [3:0] rx_count = 0;
@@ -229,15 +234,19 @@ module skid_buffer #(
     begin
         if (reset)
         begin
-            rx_count_next <= 0;
-            tx_count_next <= 0;
+            rx_count_next = 0;
+            tx_count_next = 0;
         end
         else
         begin
             if (rx_occured)
-                rx_count_next <= rx_count + 1;
+                rx_count_next = rx_count + 1;
+            else
+                rx_count_next = rx_count;
             if (tx_occured)
-                tx_count_next <= tx_count + 1;
+                tx_count_next = tx_count + 1;
+            else
+                tx_count_next = tx_count;
         end
     end
 
@@ -293,21 +302,24 @@ module skid_buffer #(
     always @(*)
     begin
         if (reset)
-            verification_state_next <= 2'b00;
+            verification_state_next = 2'b00;
         else
         begin
+            // Default assign
+            verification_state_next = verification_state;
             case (verification_state)
                 2'b00:
                 begin
                     if (handshake_index == rx_count && rx_occured)
                     begin
-                        data_recv <= in_data;
+                        // Do assign in separate clocked process
+                        //data_recv <= in_data;
                         if (fill)
-                            verification_state_next <= 2'b01;
+                            verification_state_next = 2'b01;
                         else
                         begin
                             assert(load || flow);
-                            verification_state_next <= 2'b10;
+                            verification_state_next = 2'b10;
                         end
                     end
                 end
@@ -316,7 +328,7 @@ module skid_buffer #(
                     assert(state == FULL);
                     assert(stall_data_buffer == data_recv);
                     if (flush)
-                        verification_state_next <= 2'b10;
+                        verification_state_next = 2'b10;
                 end
                 2'b10:
                 begin
@@ -324,7 +336,7 @@ module skid_buffer #(
                     begin
                         assert(out_data == data_recv);
                         if (tx_occured)
-                            verification_state_next <= 2'b00;
+                            verification_state_next = 2'b00;
                     end
                 end
             endcase
@@ -334,14 +346,22 @@ module skid_buffer #(
     end
 
     always @(posedge clk)
+        if (verification_state == 2'b00 && verification_state_next != 2'b00)
+            data_recv <= in_data;
+
+    always @(posedge clk)
     begin
         if (past_valid && verification_state == 2'b10)
             if($past(!reset) || (USE_ASYNC_RESET && !reset))
             begin
                 if ($past(verification_state != 2'b10))
+                begin
                     assert(state == BUSY);
+                end
                 else
+                begin
                     assert(state == BUSY || state == FULL);
+                end
             end
             else
                 assert(state == EMPTY);
@@ -368,7 +388,7 @@ module skid_buffer #(
     // Cover (only do cover in sync mode)
     // Make traces easier to read for cover
     reg in_data_cover_readable = 1'b1;
-    localparam [DATA_WIDTH-1] incr_sized = 1;
+    localparam [DATA_WIDTH-1:0] incr_sized = 1;
     always @(posedge clk)
         if (past_valid && !(in_valid && !in_ready)
                 && in_data != $past(in_data+incr_sized))
