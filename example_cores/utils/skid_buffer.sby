@@ -19,6 +19,8 @@ smtbmc z3
 
 [script]
 read_verilog -formal skid_buffer.v
+read_verilog -formal skid_buffer_sync.v
+read_verilog -formal skid_buffer_async.v
 read_verilog -formal axi_stream_master_monitor.v
 read_verilog -formal axi_stream_slave_monitor.v
 read_verilog -formal skid_buffer_tb_formal.v
@@ -33,6 +35,8 @@ prep
 
 [files]
 skid_buffer.v
+skid_buffer_sync.v
+skid_buffer_async.v
 ../../property_sets/axi_stream/axi_stream_master_monitor.v
 ../../property_sets/axi_stream/axi_stream_slave_monitor.v
 skid_buffer_tb_formal.v
